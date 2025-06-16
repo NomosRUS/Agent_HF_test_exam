@@ -35,7 +35,7 @@ class BasicAgent:
         except Exception as e:
             raise RuntimeError(f"generation failed: {e}") from e
 
-         if outputs and isinstance(outputs, list):
+        if outputs and isinstance(outputs, list):
             generated_text = outputs[0].get("generated_text", "")
         else:
             generated_text = str(outputs)
