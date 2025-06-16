@@ -3,6 +3,7 @@ import gradio as gr
 import requests
 import inspect
 import pandas as pd
+from transformers import pipeline
 
 # (Keep Constants as is)
 # --- Constants ---
@@ -11,8 +12,18 @@ DEFAULT_API_URL = "https://agents-course-unit4-scoring.hf.space"
 # --- Basic Agent Definition ---
 # ----- THIS IS WERE YOU CAN BUILD WHAT YOU WANT ------
 class BasicAgent:
-    def __init__(self):
-        print("BasicAgent initialized.")
+    SYSTEM_PROMPT = (
+        "You are a general AI assistant. I will ask you a question. "
+        "Report your thoughts, and finish your answer with the following template: "
+        "FINAL ANSWER: [YOUR FINAL ANSWER]. YOUR FINAL ANSWER should be a number OR as few words as possible OR a comma separated list of numbers and/or strings. "
+        "If you are asked for a number, don't use comma to write your number neither use units such as $ or percent sign unless specified otherwise. "
+        "If you are asked for a string, don't use articles, neither abbreviations, and write the digits in plain text unless specified otherwise. "
+        "If you are asked for a comma separated list, apply the above rules depending of whether the element to be put in the list is a number or a string."
+    )
+    
+    def __init__(self, model_name="some-hf-model"):
+        token = os.getenv("HF_API_TOKEN")
+        self.generator = pipeline("text-generation", model=model_name, token=token)
     def __call__(self, question: str) -> str:
         print(f"Agent received question (first 50 chars): {question[:50]}...")
         fixed_answer = "This is a default answer."
