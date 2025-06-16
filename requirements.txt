@@ -2,3 +2,4 @@ gradio
 requests
 transformers
 torch
+accelerate
