@@ -21,19 +21,28 @@ class BasicAgent:
         "If you are asked for a comma separated list, apply the above rules depending of whether the element to be put in the list is a number or a string."
     )
     
-    def __init__(self, model_name="google/flan-t5-base"):
+    #def __init__(self, model_name="google/flan-t5-base"):
+    def __init__(self, model_name="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"):
+    
+    
         token = os.getenv("HF_API_TOKEN")
         self.generator = pipeline("text-generation", model=model_name, token=token)
 
     def __call__(self, question: str) -> str:
         prompt = f"{self.SYSTEM_PROMPT}\nQuestion: {question}\nAnswer:"
-        result = self.generator(prompt, max_new_tokens=128)[0]["generated_text"]
+        try:
+            outputs = self.generator(prompt, max_new_tokens=128)
+        except Exception as e:
+            raise RuntimeError(f"generation failed: {e}") from e
 
-        if "FINAL ANSWER:" in generated:
-            answer = generated.split("FINAL ANSWER:", 1)[1].strip()
+         if outputs and isinstance(outputs, list):
+            generated_text = outputs[0].get("generated_text", "")
         else:
-            answer = generated.strip()
-        return answer
+            generated_text = str(outputs)
+
+        if "FINAL ANSWER:" in generated_text:
+            return generated_text.split("FINAL ANSWER:", 1)[1].strip()
+        return generated_text.strip()
 
 def run_and_submit_all( profile: gr.OAuthProfile | None):
     """
