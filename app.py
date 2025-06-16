@@ -26,14 +26,14 @@ class BasicAgent:
         self.generator = pipeline("text-generation", model=model_name, token=token)
 
     def __call__(self, question: str) -> str:
-    prompt = f"{self.SYSTEM_PROMPT}\nQuestion: {question}\nAnswer:"
-    result = self.generator(prompt, max_new_tokens=128)[0]["generated_text"]
+        prompt = f"{self.SYSTEM_PROMPT}\nQuestion: {question}\nAnswer:"
+        result = self.generator(prompt, max_new_tokens=128)[0]["generated_text"]
 
-    if "FINAL ANSWER:" in generated:
-    answer = generated.split("FINAL ANSWER:", 1)[1].strip()
-    else:
-    answer = generated.strip()
-    return answer
+        if "FINAL ANSWER:" in generated:
+            answer = generated.split("FINAL ANSWER:", 1)[1].strip()
+        else:
+            answer = generated.strip()
+        return answer
 
 def run_and_submit_all( profile: gr.OAuthProfile | None):
     """
