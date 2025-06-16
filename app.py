@@ -21,7 +21,7 @@ class BasicAgent:
         "If you are asked for a comma separated list, apply the above rules depending of whether the element to be put in the list is a number or a string."
     )
     
-    def __init__(self, model_name="some-hf-model"):
+    def __init__(self, model_name="DeepSeek-R1-0528"):
         token = os.getenv("HF_API_TOKEN")
         self.generator = pipeline("text-generation", model=model_name, token=token)
 
