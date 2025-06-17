@@ -21,45 +21,57 @@ class BasicAgent:
         "If you are asked for a comma separated list, apply the above rules depending of whether the element to be put in the list is a number or a string."
     )
     
-    def __init__(self, model_name="some-hf-model"):
+    def __init__(self, model_name="sshleifer/tiny-gpt2"):
+        """Initialize the Hugging Face text generation pipeline."""
         token = os.getenv("HF_API_TOKEN")
-        self.generator = pipeline("text-generation", model=model_name, token=token)
+        self.generator = pipeline(
+            "text-generation",
+            model=model_name,
+            token=token,
+        )
 
     def __call__(self, question: str) -> str:
-    prompt = f"{self.SYSTEM_PROMPT}\nQuestion: {question}\nAnswer:"
-    result = self.generator(prompt, max_new_tokens=128)[0]["generated_text"]
+        """Generate an answer and return text after the FINAL ANSWER prefix."""
+        prompt = f"{self.SYSTEM_PROMPT}\nQuestion: {question}\nAnswer:"
+        try:
+            outputs = self.generator(prompt, max_new_tokens=128)
+        except Exception as e:
+            raise RuntimeError(f"generation failed: {e}") from e
 
-    if "FINAL ANSWER:" in generated:
-    answer = generated.split("FINAL ANSWER:", 1)[1].strip()
-    else:
-    answer = generated.strip()
-    return answer
+        if outputs and isinstance(outputs, list):
+            generated_text = outputs[0].get("generated_text", "")
+        else:
+            generated_text = str(outputs)
 
-def run_and_submit_all( profile: gr.OAuthProfile | None):
-    """
-    Fetches all questions, runs the BasicAgent on them, submits all answers,
-    and displays the results.
-    """
+        if "FINAL ANSWER:" in generated_text:
+            return generated_text.split("FINAL ANSWER:", 1)[1].strip()
+        return generated_text.strip()
+
+def run_and_submit_all(profile: gr.OAuthProfile | None):
+    """Run the agent on all questions and stream progress back to the UI."""
     # --- Determine HF Space Runtime URL and Repo URL ---
-    space_id = os.getenv("SPACE_ID") # Get the SPACE_ID for sending link to the code
+    space_id = os.getenv("SPACE_ID")  # Get the SPACE_ID for sending link to the code
 
     if profile:
         username= f"{profile.username}"
         print(f"User logged in: {username}")
     else:
         print("User not logged in.")
-        return "Please Login to Hugging Face with the button.", None
+        yield "Please Login to Hugging Face with the button.", pd.DataFrame(), ""
+        return
 
     api_url = DEFAULT_API_URL
     questions_url = f"{api_url}/questions"
     submit_url = f"{api_url}/submit"
+    yield "Initializing...", pd.DataFrame(), ""
 
     # 1. Instantiate Agent ( modify this part to create your agent)
     try:
         agent = BasicAgent()
     except Exception as e:
         print(f"Error instantiating agent: {e}")
-        return f"Error initializing agent: {e}", None
+        yield f"Error initializing agent: {e}", pd.DataFrame(), ""
+        return
     # In the case of an app running as a hugging Face space, this link points toward your codebase ( usefull for others so please keep it public)
     agent_code = f"https://huggingface.co/spaces/{space_id}/tree/main"
     print(agent_code)
@@ -71,25 +83,30 @@ def run_and_submit_all( profile: gr.OAuthProfile | None):
         response.raise_for_status()
         questions_data = response.json()
         if not questions_data:
-             print("Fetched questions list is empty.")
-             return "Fetched questions list is empty or invalid format.", None
+            print("Fetched questions list is empty.")
+            yield "Fetched questions list is empty or invalid format.", pd.DataFrame(), ""
+            return
         print(f"Fetched {len(questions_data)} questions.")
+        yield f"Fetched {len(questions_data)} questions.", pd.DataFrame(), ""
     except requests.exceptions.RequestException as e:
         print(f"Error fetching questions: {e}")
-        return f"Error fetching questions: {e}", None
+        yield f"Error fetching questions: {e}", pd.DataFrame(), ""
+        return
     except requests.exceptions.JSONDecodeError as e:
-         print(f"Error decoding JSON response from questions endpoint: {e}")
-         print(f"Response text: {response.text[:500]}")
-         return f"Error decoding server response for questions: {e}", None
+        print(f"Error decoding JSON response from questions endpoint: {e}")
+        print(f"Response text: {response.text[:500]}")
+        yield f"Error decoding server response for questions: {e}", pd.DataFrame(), ""
+        return
     except Exception as e:
         print(f"An unexpected error occurred fetching questions: {e}")
-        return f"An unexpected error occurred fetching questions: {e}", None
+        yield f"An unexpected error occurred fetching questions: {e}", pd.DataFrame(), ""
+        return
 
     # 3. Run your Agent
     results_log = []
     answers_payload = []
     print(f"Running agent on {len(questions_data)} questions...")
-    for item in questions_data:
+    for idx, item in enumerate(questions_data, start=1):
         task_id = item.get("task_id")
         question_text = item.get("question")
         if not task_id or question_text is None:
@@ -100,17 +117,29 @@ def run_and_submit_all( profile: gr.OAuthProfile | None):
             answers_payload.append({"task_id": task_id, "submitted_answer": submitted_answer})
             results_log.append({"Task ID": task_id, "Question": question_text, "Submitted Answer": submitted_answer})
         except Exception as e:
-             print(f"Error running agent on task {task_id}: {e}")
-             results_log.append({"Task ID": task_id, "Question": question_text, "Submitted Answer": f"AGENT ERROR: {e}"})
+            print(f"Error running agent on task {task_id}: {e}")
+            submitted_answer = f"AGENT ERROR: {e}"
+            results_log.append({"Task ID": task_id, "Question": question_text, "Submitted Answer": submitted_answer})
+
+        progress_msg = f"Question {idx}/{len(questions_data)}: {question_text}"
+        yield f"Processed {idx}/{len(questions_data)}", pd.DataFrame(results_log), progress_msg
 
     if not answers_payload:
         print("Agent did not produce any answers to submit.")
-        return "Agent did not produce any answers to submit.", pd.DataFrame(results_log)
+        yield "Agent did not produce any answers to submit.", pd.DataFrame(results_log), ""
+        return
 
     # 4. Prepare Submission 
-    submission_data = {"username": username.strip(), "agent_code": agent_code, "answers": answers_payload}
-    status_update = f"Agent finished. Submitting {len(answers_payload)} answers for user '{username}'..."
+    submission_data = {
+        "username": username.strip(),
+        "agent_code": agent_code,
+        "answers": answers_payload,
+    }
+    status_update = (
+        f"Agent finished. Submitting {len(answers_payload)} answers for user '{username}'..."
+    )
     print(status_update)
+    yield status_update, pd.DataFrame(results_log), ""
 
     # 5. Submit
     print(f"Submitting {len(answers_payload)} answers to: {submit_url}")
@@ -127,7 +156,8 @@ def run_and_submit_all( profile: gr.OAuthProfile | None):
         )
         print("Submission successful.")
         results_df = pd.DataFrame(results_log)
-        return final_status, results_df
+        yield final_status, results_df, ""
+        return
     except requests.exceptions.HTTPError as e:
         error_detail = f"Server responded with status {e.response.status_code}."
         try:
@@ -138,22 +168,26 @@ def run_and_submit_all( profile: gr.OAuthProfile | None):
         status_message = f"Submission Failed: {error_detail}"
         print(status_message)
         results_df = pd.DataFrame(results_log)
-        return status_message, results_df
+        yield status_message, results_df, ""
+        return
     except requests.exceptions.Timeout:
         status_message = "Submission Failed: The request timed out."
         print(status_message)
         results_df = pd.DataFrame(results_log)
-        return status_message, results_df
+        yield status_message, results_df, ""
+        return
     except requests.exceptions.RequestException as e:
         status_message = f"Submission Failed: Network error - {e}"
         print(status_message)
         results_df = pd.DataFrame(results_log)
-        return status_message, results_df
+        yield status_message, results_df, ""
+        return
     except Exception as e:
         status_message = f"An unexpected error occurred during submission: {e}"
         print(status_message)
         results_df = pd.DataFrame(results_log)
-        return status_message, results_df
+        yield status_message, results_df, ""
+        return
 
 
 # --- Build Gradio Interface using Blocks ---
@@ -181,10 +215,11 @@ with gr.Blocks() as demo:
     status_output = gr.Textbox(label="Run Status / Submission Result", lines=5, interactive=False)
     # Removed max_rows=10 from DataFrame constructor
     results_table = gr.DataFrame(label="Questions and Agent Answers", wrap=True)
+    progress_box = gr.Textbox(label="Progress", lines=2, interactive=False)
 
     run_button.click(
         fn=run_and_submit_all,
-        outputs=[status_output, results_table]
+        outputs=[status_output, results_table, progress_box]
     )
 
 if __name__ == "__main__":
