@@ -29,7 +29,7 @@ class BasicAgent:
     )
     
     #def __init__(self, model_name="google/flan-t5-base"):
-    def __init__(self, model_name="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"):
+    def __init__(self, model_name="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"):
     
     
         token = os.getenv("HF_API_TOKEN")
