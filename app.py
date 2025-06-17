@@ -5,6 +5,13 @@ import inspect
 import pandas as pd
 from transformers import pipeline
 
+#to delete futher
+current_question = ""
+current_answer = ""
+def get_status():
+    return current_question, current_answer
+
+
 # (Keep Constants as is)
 # --- Constants ---
 DEFAULT_API_URL = "https://agents-course-unit4-scoring.hf.space"
@@ -62,7 +69,13 @@ def run_and_submit_all( profile: gr.OAuthProfile | None):
     api_url = DEFAULT_API_URL
     questions_url = f"{api_url}/questions"
     submit_url = f"{api_url}/submit"
-
+    
+    #delete
+    global current_question, current_answer
+    current_question = ""
+    current_answer = ""
+    #delete
+    
     # 1. Instantiate Agent ( modify this part to create your agent)
     try:
         agent = BasicAgent()
@@ -101,17 +114,26 @@ def run_and_submit_all( profile: gr.OAuthProfile | None):
     for item in questions_data:
         task_id = item.get("task_id")
         question_text = item.get("question")
+        #del
+        current_question = question_text
+        current_answer = ""
+        #del
         if not task_id or question_text is None:
             print(f"Skipping item with missing task_id or question: {item}")
             continue
         try:
             submitted_answer = agent(question_text)
             answers_payload.append({"task_id": task_id, "submitted_answer": submitted_answer})
+            #del
+            current_answer = submitted_answer
+            #del
             results_log.append({"Task ID": task_id, "Question": question_text, "Submitted Answer": submitted_answer})
         except Exception as e:
              print(f"Error running agent on task {task_id}: {e}")
              results_log.append({"Task ID": task_id, "Question": question_text, "Submitted Answer": f"AGENT ERROR: {e}"})
-
+             #del
+             current_answer = f"AGENT ERROR: {e}"
+             #del
     if not answers_payload:
         print("Agent did not produce any answers to submit.")
         return "Agent did not produce any answers to submit.", pd.DataFrame(results_log)
@@ -190,12 +212,18 @@ with gr.Blocks() as demo:
     status_output = gr.Textbox(label="Run Status / Submission Result", lines=5, interactive=False)
     # Removed max_rows=10 from DataFrame constructor
     results_table = gr.DataFrame(label="Questions and Agent Answers", wrap=True)
-
+    #del
+    current_question_box = gr.Textbox(label="Current Question")
+    current_answer_box = gr.Textbox(label="Current Answer")
+    #del
     run_button.click(
         fn=run_and_submit_all,
         outputs=[status_output, results_table]
     )
-
+    #del
+    status_timer = gr.Timer(1.0)
+    status_timer.tick(fn=get_status, outputs=[current_question_box, current_answer_box])
+    #del
 if __name__ == "__main__":
     print("\n" + "-"*30 + " App Starting " + "-"*30)
     # Check for SPACE_HOST and SPACE_ID at startup for information
