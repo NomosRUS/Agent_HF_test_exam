@@ -36,7 +36,7 @@ class BasicAgent:
     )
     
     #def __init__(self, model_name="google/flan-t5-base"):
-    def __init__(self, model_name="Qwen/Qwen3-14B"):
+    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.3"):
         # mistralai/Mistral-7B-Instruct-v0.3
     
     
