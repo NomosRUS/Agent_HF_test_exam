@@ -47,6 +47,9 @@ class BasicAgent:
         else:
             generated_text = str(outputs)
 
+        if generated_text.startswith(prompt):
+            generated_text = generated_text[len(prompt):].lstrip()
+
         if "FINAL ANSWER:" in generated_text:
             return generated_text.split("FINAL ANSWER:", 1)[1].strip()
         return generated_text.strip()
