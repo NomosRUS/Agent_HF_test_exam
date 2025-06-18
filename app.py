@@ -20,18 +20,17 @@ DEFAULT_API_URL = "https://agents-course-unit4-scoring.hf.space"
 # ----- THIS IS WERE YOU CAN BUILD WHAT YOU WANT ------
 class BasicAgent:
     SYSTEM_PROMPT = (
-        "You are a general AI assistant. I will ask you a question. "
-        "Report your thoughts, and finish your answer with the following template: "
-        "FINAL ANSWER:" 
+        "You are a general AI assistant. I will ask you a question."
+        "Report your thoughts, and finish your final answer with the following template: "
+        "FINAL ANSWER: {answer}" 
         "YOUR FINAL ANSWER should be a number OR as few words as possible OR a comma separated list of numbers and/or strings. "
         "If you are asked for a number, don't use comma to write your number neither use units such as $ or percent sign unless specified otherwise. "
         "If you are asked for a string, don't use articles, neither abbreviations, and write the digits in plain text unless specified otherwise. "
         "If you are asked for a comma separated list, apply the above rules depending of whether the element to be put in the list is a number or a string."
-        #"Always end your output exactly with "FINAL ANSWER: and do not add any text after that."
     )
     
     #def __init__(self, model_name="google/flan-t5-base"):
-    def __init__(self, model_name="Qwen/Qwen3-4B"):
+    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.3"):
     
     
         token = os.getenv("HF_API_TOKEN")
