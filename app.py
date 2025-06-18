@@ -46,6 +46,10 @@ class BasicAgent:
         self.generator = pipeline("text-generation", model=model_name, token=token)
         self.memory: List[str] = []
 
+        def get_context(self) -> str:
+        """Return the agent's current reasoning context."""
+        return "\n".join(self.memory)
+
     def _plan(self, question: str) -> List[Dict[str, Any]]:
         """Create a simple plan consisting of tool steps."""
         steps: List[Dict[str, Any]] = []
@@ -228,7 +232,11 @@ def run_and_submit_all( profile: gr.OAuthProfile | None):
             continue
         try:
             submitted_answer = agent(question_text)
-            current_context = agent.get_context()
+            
+            question_context = agent.get_context()
+            if current_context:
+                current_context += "\n\n"
+            current_context += f"Question {task_id}: {question_text}\n{question_context}"
             answers_payload.append({"task_id": task_id, "submitted_answer": submitted_answer})
             #del
             current_answer = submitted_answer
