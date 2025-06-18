@@ -4,3 +4,7 @@ transformers
 torch
 accelerate
 sentencepiece
+PyPDF2
+python-pptx
+openpyxl
+beautifulsoup4
