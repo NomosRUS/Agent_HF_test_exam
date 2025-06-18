@@ -13,8 +13,10 @@ from PyPDF2 import PdfReader
 #to delete futher
 current_question = ""
 current_answer = ""
+current_context = ""
+
 def get_status():
-    return current_question, current_answer
+    return current_question, current_answer, current_context
 
 
 # (Keep Constants as is)
@@ -172,9 +174,11 @@ def run_and_submit_all( profile: gr.OAuthProfile | None):
     submit_url = f"{api_url}/submit"
     
     #delete
-    global current_question, current_answer
+    global current_question, current_answer, current_context
     current_question = ""
     current_answer = ""
+    current_context = ""
+    
     #delete
     
     # 1. Instantiate Agent ( modify this part to create your agent)
@@ -224,6 +228,7 @@ def run_and_submit_all( profile: gr.OAuthProfile | None):
             continue
         try:
             submitted_answer = agent(question_text)
+            current_context = agent.get_context()
             answers_payload.append({"task_id": task_id, "submitted_answer": submitted_answer})
             #del
             current_answer = submitted_answer
@@ -316,6 +321,7 @@ with gr.Blocks() as demo:
     #del
     current_question_box = gr.Textbox(label="Current Question")
     current_answer_box = gr.Textbox(label="Current Answer")
+    context_box = gr.Textbox(label="Current Context")
     #del
     run_button.click(
         fn=run_and_submit_all,
@@ -323,7 +329,7 @@ with gr.Blocks() as demo:
     )
     #del
     status_timer = gr.Timer(1.0)
-    status_timer.tick(fn=get_status, outputs=[current_question_box, current_answer_box])
+    status_timer.tick(fn=get_status, outputs=[current_question_box, current_answer_box, context_box])
     #del
 if __name__ == "__main__":
     print("\n" + "-"*30 + " App Starting " + "-"*30)
