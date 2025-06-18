@@ -4,6 +4,11 @@ import requests
 import inspect
 import pandas as pd
 from transformers import pipeline
+from urllib.parse import quote_plus
+import re
+from typing import List, Dict, Any
+from pptx import Presentation
+from PyPDF2 import PdfReader
 
 #to delete futher
 current_question = ""
@@ -36,9 +41,99 @@ class BasicAgent:
     
         token = os.getenv("HF_API_TOKEN")
         self.generator = pipeline("text-generation", model=model_name, token=token)
+        self.memory: List[str] = []
+
+    def _plan(self, question: str) -> List[Dict[str, Any]]:
+        """Create a simple plan consisting of tool steps."""
+        steps: List[Dict[str, Any]] = []
+
+        file_match = re.search(r"(\S+\.(?:pdf|xlsx|csv|pptx|txt))", question, re.IGNORECASE)
+        if file_match:
+            steps.append({"tool": "file", "path": file_match.group(1)})
+            return steps
+
+        expr_match = re.search(r"[\d\s\+\-\*/\.\(\)]+", question)
+        has_op = any(op in question for op in ["+", "-", "*", "/"])
+
+        if expr_match and has_op:
+            expression = expr_match.group(0)
+            # if the question also implies web lookup, gather info first
+            if re.search(r"\b(search|lookup|population|when|who|what)\b", question.lower()):
+                steps.append({"tool": "web", "query": question})
+            steps.append({"tool": "calculator", "expression": expression})
+            return steps
+
+        # default to web search
+        steps.append({"tool": "web", "query": question})
+        return steps
+
+    def _web_search(self, query: str) -> str:
+        url = f"https://r.jina.ai/https://duckduckgo.com/html/?q={quote_plus(query)}"
+        try:
+            resp = requests.get(url, timeout=10)
+            text = resp.text
+            for line in text.splitlines():
+                if line.startswith("[") and "](" in line:
+                    return line
+            return "No result found"
+        except Exception as e:
+            return f"web search error: {e}"
+
+    def _execute_calculator(self, expression: str) -> str:
+        try:
+            result = eval(expression, {"__builtins__": {}}, {})
+            return str(result)
+        except Exception as e:
+            return f"calc error: {e}"
+
+    def _load_file(self, path: str) -> str:
+        try:
+            ext = os.path.splitext(path)[1].lower()
+            if ext == ".pdf":
+                reader = PdfReader(path)
+                return "\n".join(page.extract_text() for page in reader.pages[:3])
+            if ext in {".xlsx", ".xls"}:
+                df = pd.read_excel(path)
+                return df.to_csv(index=False)
+            if ext == ".csv":
+                df = pd.read_csv(path)
+                return df.to_csv(index=False)
+            if ext == ".pptx":
+                prs = Presentation(path)
+                texts = []
+                for slide in prs.slides:
+                    for shape in slide.shapes:
+                        if hasattr(shape, "text"):
+                            texts.append(shape.text)
+                return "\n".join(texts)
+            if ext == ".txt":
+                with open(path, "r", encoding="utf-8") as f:
+                    return f.read()
+        except Exception as e:
+            return f"file load error: {e}"
+        return "unsupported file"
 
     def __call__(self, question: str) -> str:
-        prompt = f"{self.SYSTEM_PROMPT}\nQuestion: {question}\nAnswer:"
+
+        self.memory.clear()
+        self.memory.append(f"Question: {question}")
+        plan = self._plan(question)
+        self.memory.append(f"Plan: {plan}")
+
+        for step in plan:
+            action = step.get("tool")
+            self.memory.append(f"Act: {action} -> {step}")
+            if action == "calculator":
+                observation = self._execute_calculator(step["expression"])
+            elif action == "file":
+                observation = self._load_file(step["path"])
+            else:
+                observation = self._web_search(step["query"])
+            self.memory.append(f"Observation: {observation}")
+
+        context = "\n".join(self.memory)
+        prompt = f"{self.SYSTEM_PROMPT}\n{context}\nQuestion: {question}\nAnswer:"
+        
         try:
             outputs = self.generator(prompt, max_new_tokens=128)
         except Exception as e:
