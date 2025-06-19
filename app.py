@@ -160,7 +160,9 @@ class BasicAgent:
             self.memory.append(f"Observation: {observation}")
 
         context = "\n".join(self.memory)
-        prompt = f"{self.SYSTEM_PROMPT}\n{context}\nQuestion: {question}\nAnswer:"
+        #prompt = f"{self.SYSTEM_PROMPT}\n{context}\nQuestion: {question}\nAnswer:"
+        prompt = f"{self.SYSTEM_PROMPT}\nQuestion: {question}\nAnswer:"
+        
         
         try:
             outputs = self.generator(prompt, max_new_tokens=128)
