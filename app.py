@@ -46,7 +46,7 @@ class BasicAgent:
         self.generator = pipeline("text-generation", model=model_name, token=token)
         self.memory: List[str] = []
 
-        def get_context(self) -> str:
+    def get_context(self) -> str:
         """Return the agent's current reasoning context."""
         return "\n".join(self.memory)
 
