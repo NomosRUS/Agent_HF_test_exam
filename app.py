@@ -9,6 +9,7 @@ import re
 from typing import List, Dict, Any
 from pptx import Presentation
 from PyPDF2 import PdfReader
+import openai
 
 #to delete futher
 current_question = ""
@@ -22,6 +23,23 @@ def get_status():
 # (Keep Constants as is)
 # --- Constants ---
 DEFAULT_API_URL = "https://agents-course-unit4-scoring.hf.space"
+
+# Alternative text-generation function using OpenAI GPT-4o
+def openai_gpt4o_generator(prompt: str, max_new_tokens: int = 128):
+    """Generate text using OpenAI GPT-4o via the API."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY environment variable is not set")
+    client = openai.OpenAI(api_key=api_key)
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=max_new_tokens,
+    )
+    text = response.choices[0].message.content
+    return [{"generated_text": text}]
+
+
 
 # --- Basic Agent Definition ---
 # ----- THIS IS WERE YOU CAN BUILD WHAT YOU WANT ------
@@ -37,15 +55,26 @@ class BasicAgent:
         "Always end your output exactly with FINAL ANSWER: <Answer> and do not add any text after that."
     )
     
-    #def __init__(self, model_name="google/flan-t5-base"):
-    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.3"):
+    #def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.3"):
         # mistralai/Mistral-7B-Instruct-v0.3
     
     
-        token = os.getenv("HF_API_TOKEN")
-        self.generator = pipeline("text-generation", model=model_name, token=token)
+    #    token = os.getenv("HF_API_TOKEN")
+    #    self.generator = pipeline("text-generation", model=model_name, token=token)
+    #    self.memory: List[str] = []
+    
+    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.3", use_openai: bool = False):
+        """Initialize the agent either with a HF model or OpenAI GPT-4o."""
+
+        if use_openai:
+            self.generator = openai_gpt4o_generator
+        else:
+            token = os.getenv("HF_API_TOKEN")
+            self.generator = pipeline("text-generation", model=model_name, token=token)
         self.memory: List[str] = []
 
+    
+    
     def get_context(self) -> str:
         """Return the agent's current reasoning context."""
         return "\n".join(self.memory)
