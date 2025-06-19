@@ -1,11 +1,11 @@
-gradio
+#gradio
 requests
-transformers
+#transformers
 torch
 accelerate
-sentencepiece
+#sentencepiece
 PyPDF2
 python-pptx
-openpyxl
-beautifulsoup4
-openai
+#openpyxl
+#beautifulsoup4
+#openai
