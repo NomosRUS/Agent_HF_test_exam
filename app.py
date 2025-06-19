@@ -55,22 +55,14 @@ class BasicAgent:
         "Always end your output exactly with FINAL ANSWER: <Answer> and do not add any text after that."
     )
     
-    #def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.3"):
-        # mistralai/Mistral-7B-Instruct-v0.3
-    
-    
+    #def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.3"):  
     #    token = os.getenv("HF_API_TOKEN")
     #    self.generator = pipeline("text-generation", model=model_name, token=token)
     #    self.memory: List[str] = []
     
-    def __init__(self, model_name="mistralai/Mistral-7B-Instruct-v0.3", use_openai: bool = False):
-        """Initialize the agent either with a HF model or OpenAI GPT-4o."""
-
-        if use_openai:
-            self.generator = openai_gpt4o_generator
-        else:
-            token = os.getenv("HF_API_TOKEN")
-            self.generator = pipeline("text-generation", model=model_name, token=token)
+    def __init__(self):
+        """Инициализация агента, использующего только OpenAI GPT-4o."""
+        self.generator = openai_gpt4o_generator
         self.memory: List[str] = []
 
     
